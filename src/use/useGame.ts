@@ -1,5 +1,5 @@
 import { reactive, onMounted, onUnmounted, computed, watch } from "vue";
-import { WebGLRenderer, PerspectiveCamera, AmbientLight, AnimationMixer, Clock, DirectionalLight, DoubleSide, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, RepeatWrapping, Scene, TextureLoader, Vector3 } from 'three'
+import { WebGLRenderer, PerspectiveCamera, AmbientLight, AnimationMixer, Clock, DirectionalLight, DoubleSide, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, RepeatWrapping, Scene, TextureLoader, Vector3, VectorKeyframeTrack, AnimationClip, InterpolateSmooth, LoopOnce, Quaternion, QuaternionKeyframeTrack, Renderer } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 // @ts-ignore
@@ -8,7 +8,6 @@ import floorTexture from '../assets/wooden-plane.jpg'
 
 import usePlayer, { Player } from "./usePlayer";
 import useWindowSize from "./useWindowSize";
-import { Renderer } from "three/src/Three";
 import useKeyboard from "./useKeyboard";
 
 /* import TrackballControls from 'three-trackballcontrols'
@@ -65,7 +64,6 @@ export default function useGame() {
 
   // CAMERA
   const	camera = new PerspectiveCamera(50, aspectRatio.value, 0.1, 20000);
-  camera.rotation.order = "YXZ";
 
   const game: Game = {
     scene,
@@ -190,6 +188,16 @@ export default function useGame() {
     }
 
     keyboard.update()
+
+    // if(game.player.loaded) {
+    //   camera.position.set(
+    //     game.player.vehicle!.position.x,
+    //     // game.player.vehicle!.position.y,
+    //     800,
+    //     game.player.vehicle!.position.z,
+    //   )
+    //   camera.lookAt(game.player.vehicle!.position);
+    // }
 
     controls.update()
   }
