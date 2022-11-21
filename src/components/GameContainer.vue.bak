@@ -1,0 +1,188 @@
+<script setup lang="ts">
+  import { computed, onMounted, ref, watch, reactive } from 'vue'
+
+  import { DoubleSide, AmbientLight, AxesHelper, BoxGeometry, Clock, Color, DirectionalLight, FrontSide, Mesh, MeshStandardMaterial, OrthographicCamera, PerspectiveCamera, Scene, WebGLRenderer, PlaneGeometry, MeshBasicMaterial, Vector3, sRGBEncoding, TextureLoader, RepeatWrapping, MeshLambertMaterial, BackSide, FogExp2, AnimationMixer, AnimationClip, Group, Object3D } from 'three'
+  import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+  import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+
+  // import TrackballControls from 'three-trackballcontrols'
+  // import {
+  //   BloomEffect,
+  //   EffectComposer,
+  //   // GlitchPass,
+  //   EffectPass,
+  //   RenderPass
+  // } from 'postprocessing'
+  
+  import useWindowSize from '../use/useWindowSize'
+  import { createCar } from '../utils/Car';
+  import floorTexture from '../assets/wooden-plane.jpg'
+  // @ts-ignore
+  import lowPolyTruck from '../assets/low-poly_truck_car_drifter.glb'
+  import Stats from './Stats.vue';
+
+  interface Game {
+    player: Object3D|null;
+    vehicles: Object3D[];
+  }
+
+  const game: Game = reactive<Game>({
+    player: null,
+    vehicles: [],
+  })
+
+  const LOW_POLY_TRUCK = '../assets/low-poly_truck_car_drifter.glb'
+
+  const {width, height} = useWindowSize()
+
+  const canvas = ref<HTMLCanvasElement>()
+  const scene = new Scene()
+  const clock = new Clock();
+
+  const groundTexture = new TextureLoader().load(floorTexture, (tx) => {
+    console.log('loaded', tx, tx.image)
+    tx.needsUpdate = true;
+    // tx.offset.set(0, 0);
+    // tx.repeat.set(2, 2);
+  });
+  groundTexture.wrapS = groundTexture.wrapT = RepeatWrapping;
+  // groundTexture.repeat.set(2, 2);
+  groundTexture.repeat.set(100, 100);
+  groundTexture.anisotropy = 16;
+  // groundTexture.encoding = sRGBEncoding;
+  // groundTexture.repeat.set(1, 1);
+
+  const floorGeometry = new PlaneGeometry(10000, 10000, 100, 100)
+  const floorMaterial = new MeshBasicMaterial({ map: groundTexture, side: DoubleSide });
+  const floorMesh = new Mesh(floorGeometry, floorMaterial);
+  // if you want to use the plane as a floor, you have to rotate it.
+  floorMesh.rotation.setFromVector3(new Vector3(Math.PI / 2, 0, Math.PI / 2));
+  // floorMesh.receiveShadow = true;
+  scene.add(floorMesh)
+
+  // const car = createCar()
+  // scene.add(car)
+
+  const ambientLight = new AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+
+  const directionalLight = new DirectionalLight(0xffffff, 0.8);
+  directionalLight.position.set(200, 500, 300);
+  scene.add(directionalLight); 
+
+  const cameraWidth = 150;
+  const aspectRatio = computed(() => width.value / height.value)
+  const cameraHeight = computed(() => cameraWidth / aspectRatio.value)
+  
+ /*  const camera = new OrthographicCamera(
+    cameraWidth / -2, // left
+    cameraWidth / 2, // right
+    cameraHeight.value / 2, // top
+    cameraHeight.value / -2, // bottom
+    0, // near plane
+    1000 // far plane
+) */
+
+  // SETUP CAMERA
+  const VIEW_ANGLE = 50
+  const NEAR = 0.1
+  const FAR = 3000
+  const POSITION = 800
+  const	camera = new PerspectiveCamera(VIEW_ANGLE, aspectRatio.value, NEAR, FAR);
+	scene.add(camera);
+  camera.position.set(0, POSITION, 0);
+  camera.lookAt(scene.position);
+
+  // SETUP RENDERER
+  const renderer = new WebGLRenderer({ antialias: true })
+  renderer.setSize(width.value, height.value)
+
+  // SETUP CONTROLS
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.rotateSpeed = .166
+  // How far you can zoom in and out ( OrthographicCamera only )
+  // controls.minZoom = 1
+  // controls.maxZoom = 3
+
+  // Set to true to enable damping (inertia)
+  // If damping is enabled, you must call controls.update() in your animation loop
+  controls.enableDamping = false;
+  controls.dampingFactor = 0.05;
+
+  // How far you can dolly in and out ( PerspectiveCamera only )
+  controls.minDistance  = POSITION * .4
+  controls.maxDistance  = POSITION * 1.33
+
+  // Set to true to automatically rotate around the target
+  // If auto-rotate is enabled, you must call controls.update() in your animation loop
+  controls.autoRotate = false;
+  controls.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
+
+  let mixer: AnimationMixer
+
+  const loader = new GLTFLoader()
+  loader.load(lowPolyTruck, (gltf) => {
+    const truck = gltf.scene
+    truck.name = `truck`
+    console.log(truck)
+    truck.scale.set(.133, .133, .133)
+    truck.position.y = 5.4
+    scene.add(truck)
+
+    game.player = truck
+
+    mixer = new AnimationMixer(truck)
+    for(let animationClip of gltf.animations) {
+      console.log(animationClip)
+      mixer.clipAction(animationClip).play();
+    }
+  }, (xhr) => {
+    console.log((xhr.loaded / xhr.total) * 100 + '% loaded')
+  }, (err) => {
+    console.log(err)
+  })
+
+
+  onMounted(() => {
+    canvas.value!.appendChild(renderer.domElement)
+    // renderer.render(scene, camera)
+    
+    animate()
+  })
+
+  watch([width, height], () => {
+    camera.aspect = aspectRatio.value
+    camera.updateProjectionMatrix()
+    renderer.setSize(width.value, height.value)
+  })
+
+ 
+
+  const animate = () => {
+    requestAnimationFrame(animate)
+    renderer.render(scene, camera)
+    // console.log(controls.getDistance())
+    update()
+  }
+
+  const update = () => {
+    const delta = clock.getDelta(); // seconds.
+	  const moveDistance = 200 * delta; // 200 pixels per second
+	  const rotateAngle = Math.PI / 2 * delta;   // pi/2 radians (90 degrees) per second
+
+    if(mixer) mixer.update(delta);
+
+    if(game.player) {
+      // var player = scene.getObjectByName(game.player.name);
+      // game.player.position.x -= moveDistance
+    }
+
+
+    controls.update()
+  }
+</script>
+
+<template>
+  <Stats />
+  <div ref="canvas"></div>
+</template>
