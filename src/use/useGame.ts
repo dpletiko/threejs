@@ -1,5 +1,5 @@
 import { reactive, onMounted, onUnmounted, computed, watch } from "vue";
-import { WebGLRenderer, PerspectiveCamera, AmbientLight, AnimationMixer, Clock, DirectionalLight, DoubleSide, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, RepeatWrapping, Scene, TextureLoader, Vector3, VectorKeyframeTrack, AnimationClip, InterpolateSmooth, LoopOnce, Quaternion, QuaternionKeyframeTrack, Renderer } from 'three'
+import { WebGLRenderer, PerspectiveCamera, AmbientLight, AnimationMixer, Clock, DirectionalLight, DoubleSide, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, RepeatWrapping, Scene, TextureLoader, Vector3, VectorKeyframeTrack, AnimationClip, InterpolateSmooth, LoopOnce, Quaternion, QuaternionKeyframeTrack, Renderer, OrthographicCamera, AxesHelper, PlaneHelper, Plane, GridHelper, MathUtils } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 // @ts-ignore
@@ -9,6 +9,11 @@ import floorTexture from '../assets/wooden-plane.jpg'
 import usePlayer, { Player } from "./usePlayer";
 import useWindowSize from "./useWindowSize";
 import useKeyboard from "./useKeyboard";
+import useOrthographicCamera from "./useOrthographicCamera";
+import usePerspectiveCamera from "./usePerspectiveCamera";
+import { Sky } from 'three/examples/jsm/objects/Sky';
+// @ts-ignore
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 /* import TrackballControls from 'three-trackballcontrols'
 import {
@@ -30,23 +35,10 @@ export interface Game {
   start: () => void;
 }
 
-export const CAMERA_POSITION_Y = 1000
-const CAMERA_WIDTH = 150;
-
-/*  const camera = new OrthographicCamera(
-  cameraWidth / -2, // left
-  cameraWidth / 2, // right
-  cameraHeight.value / 2, // top
-  cameraHeight.value / -2, // bottom
-  0, // near plane
-  1000 // far plane
-) */
-
 export default function useGame() {
   const {keyboard} = useKeyboard()
 
   const { width, height, aspectRatio } = useWindowSize()
-  const cameraHeight = computed(() => CAMERA_WIDTH / aspectRatio.value)
   let mixer: AnimationMixer
   
   const renderer = new WebGLRenderer({ antialias: true })
@@ -54,8 +46,13 @@ export default function useGame() {
   
   const scene = new Scene()
 
+  // const sky = new Sky();
+  // sky.scale.setScalar(450000);
+
+  const axesHelper = new AxesHelper(5);
+  const gridHelper = new GridHelper(200, 10, 0xffffff, 0xffffff);
+
   // LOADERS
-  const gltfLoader = new GLTFLoader()
   const textureLoader = new TextureLoader()
   
   const ambientLight = new AmbientLight(0xffffff, 0.6);
@@ -63,7 +60,8 @@ export default function useGame() {
   directionalLight.position.set(200, 500, 300);
 
   // CAMERA
-  const	camera = new PerspectiveCamera(50, aspectRatio.value, 0.1, 20000);
+  // const	camera = useOrthographicCamera({})
+  const	camera = usePerspectiveCamera({})
 
   const game: Game = {
     scene,
@@ -77,29 +75,33 @@ export default function useGame() {
     }
   }
 
-  // CONTROLS
-  const controls = new OrbitControls(camera, game.renderer.domElement);
-
   const init = () => {
+    game.scene.add(axesHelper);
+    game.scene.add(gridHelper); 
+
+    // game.scene.add(sky);
     game.scene.add(ambientLight);
     game.scene.add(directionalLight); 
 
-    // game.scene.add(camera);
-    camera.position.set(0, CAMERA_POSITION_Y, 0);
-    camera.lookAt(game.scene.position);
+    // camera.lookAt(game.scene.position);
     
     loadGround()
-   
-    loadAssets();
 
-    setupOrbitControls();
+    initSky()
+   
+    // setupOrbitControls();
   }
 
   const setupOrbitControls = () => {
+    // CONTROLS
+    const controls = new OrbitControls(camera, game.renderer.domElement);
+
     controls.rotateSpeed = .166
     // How far you can zoom in and out ( OrthographicCamera only )
-    // controls.minZoom = 1
-    // controls.maxZoom = 3
+    if(camera instanceof OrthographicCamera) {
+      controls.minZoom = 1
+      controls.maxZoom = 3
+    }
 
     // Set to true to enable damping (inertia)
     // If damping is enabled, you must call controls.update() in your animation loop
@@ -107,36 +109,17 @@ export default function useGame() {
     controls.dampingFactor = 0.05;
 
     // How far you can dolly in and out ( PerspectiveCamera only )
-    controls.minDistance  = CAMERA_POSITION_Y * .4
-    controls.maxDistance  = CAMERA_POSITION_Y * 1.33
+    if(camera instanceof PerspectiveCamera) {
+      // controls.minDistance  = (camera as PerspectiveCamera).position.y * .4
+      controls.minDistance  = 1000 * .4
+      // controls.maxDistance  = (camera as PerspectiveCamera).position.y * 1.33
+      controls.maxDistance  = 1000 * 1.33
+    }
 
     // Set to true to automatically rotate around the target
     // If auto-rotate is enabled, you must call controls.update() in your animation loop
     controls.autoRotate = false;
     controls.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
-  }
-
-  const loadAssets = () => {
-    // gltfLoader.load(lowPolyTruck, (gltf) => {
-    //   const truck = gltf.scene
-    //   truck.name = `truck`
-    //   console.log(truck)
-    //   truck.scale.set(.133, .133, .133)
-    //   truck.position.y = 5.4
-    //   game.scene.add(truck)
-
-    //   // game.player = truck
-
-    //   mixer = new AnimationMixer(truck)
-    //   for(let animationClip of gltf.animations) {
-    //     console.log(animationClip)
-    //     mixer.clipAction(animationClip).play();
-    //   }
-    // }, (xhr) => {
-    //   console.log((xhr.loaded / xhr.total) * 100 + '% loaded')
-    // }, (err) => {
-    //   console.log(err)
-    // })
   }
 
   const loadGround = () => {
@@ -157,49 +140,35 @@ export default function useGame() {
     const floorMesh = new Mesh(floorGeometry, floorMaterial);
     // if you want to use the plane as a floor, you have to rotate it.
     floorMesh.rotation.setFromVector3(new Vector3(Math.PI / 2, 0, Math.PI / 2));
-    // floorMesh.receiveShadow = true;
+    floorMesh.receiveShadow = true;
     game.scene.add(floorMesh)
   }
 
   watch([width, height], () => {
-    camera.aspect = aspectRatio.value
-    camera.updateProjectionMatrix()
     game.renderer.setSize(width.value, height.value)
   })
 
   const animate = () => {
     requestAnimationFrame(animate)
-    game.renderer.render(game.scene, camera)
     // console.log(controls.getDistance())
     update()
+    game.renderer.render(game.scene, camera)
   }
 
   const update = () => {
     const delta = game.clock.getDelta(); // seconds.
-	  const moveDistance = 200 * delta; // 200 pixels per second
-	  const rotateAngle = Math.PI / 2 * delta;   // pi/2 radians (90 degrees) per second
-
     // if(mixer) mixer.update(delta);
 
+    keyboard.update()
+   
     if(game.player.loaded) {
       // var player = scene.getObjectByName(game.player.name);
       // game.player.position.x -= moveDistance
       game.player.animate(delta)
+      // camera.lookAt(game.player.vehicle!.position);
     }
 
-    keyboard.update()
-
-    // if(game.player.loaded) {
-    //   camera.position.set(
-    //     game.player.vehicle!.position.x,
-    //     // game.player.vehicle!.position.y,
-    //     800,
-    //     game.player.vehicle!.position.z,
-    //   )
-    //   camera.lookAt(game.player.vehicle!.position);
-    // }
-
-    controls.update()
+    // controls.update()
   }
 
   onMounted(() => {
@@ -210,6 +179,59 @@ export default function useGame() {
     // if(player.loaded) game.scene.add(player.vehicle)
   // })
 
+  const initSky = () => {
+
+    // Add Sky
+    const sky = new Sky();
+    sky.scale.setScalar( 450000 );
+    game.scene.add( sky );
+
+    const sun = new Vector3();
+
+    /// GUI
+    const effectController = {
+      turbidity: 10,
+      rayleigh: 3,
+      mieCoefficient: .002,
+      mieDirectionalG: .7,
+      elevation: .3,
+      azimuth: 180,
+      exposure: renderer.toneMappingExposure
+    };
+
+    function guiChanged() {
+      const uniforms = sky.material.uniforms;
+      uniforms[ 'turbidity' ].value = effectController.turbidity;
+      uniforms[ 'rayleigh' ].value = effectController.rayleigh;
+      uniforms[ 'mieCoefficient' ].value = effectController.mieCoefficient;
+      uniforms[ 'mieDirectionalG' ].value = effectController.mieDirectionalG;
+
+      const phi = MathUtils.degToRad( 90 - effectController.elevation );
+      const theta = MathUtils.degToRad( effectController.azimuth );
+
+      sun.setFromSphericalCoords( 1, phi, theta );
+
+      uniforms[ 'sunPosition' ].value.copy( sun );
+
+      renderer.toneMappingExposure = effectController.exposure;
+      renderer.render( scene, camera );
+    }
+
+    // const gui = new GUI();
+
+    // gui.add( effectController, 'turbidity', 0.0, 20.0, 0.1 ).onChange( guiChanged );
+    // gui.add( effectController, 'rayleigh', 0.0, 4, 0.001 ).onChange( guiChanged );
+    // gui.add( effectController, 'mieCoefficient', 0.0, 0.1, 0.001 ).onChange( guiChanged );
+    // gui.add( effectController, 'mieDirectionalG', 0.0, 1, 0.001 ).onChange( guiChanged );
+    // gui.add( effectController, 'elevation', 0, 90, 0.1 ).onChange( guiChanged );
+    // gui.add( effectController, 'azimuth', - 180, 180, 0.1 ).onChange( guiChanged );
+    // gui.add( effectController, 'exposure', 0, 1, 0.0001 ).onChange( guiChanged );
+
+    guiChanged();
+
+  }
+
+  
   init()
 
   return game

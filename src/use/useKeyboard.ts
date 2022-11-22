@@ -90,14 +90,14 @@ const keyboard = reactive<KeyboardState>({
 
     for(const [key, fns] of Object.entries(this.boundUp)) {
       if(Object.entries(this.keys).filter(([k, pressed]) => k === key).some(([k, pressed]) => !pressed)) {
-        console.log(key)
+        // console.log(key)
         for(const fn of fns) fn()
       }
     }
 
     for(const [key, fns] of Object.entries(this.boundDown)) {
       if(Object.entries(this.keys).filter(([k, pressed]) => k === key).some(([k, pressed]) => pressed)) {
-        console.log(key)
+        // console.log(key)
         for(const fn of fns) fn()
       }
     }
