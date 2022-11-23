@@ -1,4 +1,4 @@
-import { ref, Ref } from "vue";
+import { ref, watch, Ref } from "vue";
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { AnimationMixer, Camera, Clock, Object3D, Scene, Vector3, VectorKeyframeTrack, AnimationClip, InterpolateSmooth, LoopOnce, Quaternion, QuaternionKeyframeTrack, Group } from 'three'
 import { v4 as uuidv4 } from 'uuid';
@@ -17,6 +17,10 @@ export interface Player {
   loaded: boolean;
   onLoaded: () => void;
   animate: (delta: number) => void;
+  up: () => void;
+  down: () => void;
+  left: () => void;
+  right: () => void;
 }
 type Vehicle = Object3D|null
 
@@ -29,7 +33,7 @@ interface PlayerProps {
 export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) {
   let mixer: AnimationMixer
   const gltfLoader = new GLTFLoader()
-  
+
   const { keyboard, useKeyDown, useKeyUp } = useKeyboard()
 
   const container = new Group();
@@ -39,9 +43,9 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
   const xAxis = new Vector3(10, 0, 0);
   const tempCameraVector = new Vector3();
   const tempModelVector = new Vector3();
-  
+
   camera.position.set( 0, 150, 250 );
-  
+
   const cameraOrigin = new Vector3(0, 1.5, 0);
   camera.lookAt(cameraOrigin);
   container.add(camera);
@@ -60,7 +64,11 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
     animate: (delta) => {
       if(!mixer) return
       _animate(delta)
-    }
+    },
+    up: () => moveWithCamera('x', 1),
+    down: () => moveWithCamera('x', -1),
+    left: () => moveWithCamera('y', 1),
+    right: () => moveWithCamera('y', -1),
   }
 
   const loadAsset = () => {
@@ -92,20 +100,20 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
   }
 
   loadAsset()
-  
+
   useKeyDown({
-    w: [ () => moveX(1) ],
-    a: [ () => rotateY(1) ],
-    s: [ () => moveX(-1) ],
-    d: [ () => rotateY(-1) ],
-    shift: [ 
+    w: [ () => player.up() ],
+    a: [ () => player.left() ],
+    s: [ () => player.down() ],
+    d: [ () => player.right() ],
+    shift: [
       () => {
         if(player.speed.value !== 2) {
           player.speed.value = 2;
         }
-      } 
+      }
     ],
-    z: [ 
+    z: [
       () => {
         console.log(123321)
       }
@@ -113,20 +121,22 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
   })
 
   useKeyUp({
-    shift: [ 
+    shift: [
       () => {
         if(player.speed.value !== 1) {
           player.speed.value = 1;
         }
-      } 
+      }
     ],
   })
 
-  const pointCamera = (offset: number) => {
+  watch(player.speed, (n, o) => console.log(n, o))
+
+  const moveWithCamera = (position: 'x'|'y', offset: 1|-1 = 1) => {
     // Get the X-Z plane in which camera is looking to move the player
     camera.getWorldDirection(tempCameraVector);
     const cameraDirection = tempCameraVector.setY(0).normalize();
-    
+
     // Get the X-Z plane in which player is looking to compare with camera
     player.vehicle!.getWorldDirection(tempModelVector);
     const playerDirection = tempModelVector.setY(0).normalize();
@@ -134,10 +144,10 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
     // Get the angle to x-axis. z component is used to compare if the angle is clockwise or anticlockwise since angleTo returns a positive value
     const cameraAngle = cameraDirection.angleTo(xAxis) * (cameraDirection.z > 0 ? 1 : -1);
     const playerAngle = playerDirection.angleTo(xAxis) * (playerDirection.z > 0 ? 1 : -1);
-    
+
     // Get the angle to rotate the player to face the camera. Clockwise positive
     const angleToRotate = playerAngle - cameraAngle;
-    
+
     // Get the shortest angle from clockwise angle to ensure the player always rotates the shortest angle
     let sanitisedAngle = angleToRotate;
     if(angleToRotate > Math.PI) {
@@ -147,26 +157,33 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
       sanitisedAngle = angleToRotate + 2 * Math.PI
     }
 
-    console.log(sanitisedAngle)
-
     // Rotate the model by a tiny value towards the camera direction
     // player.vehicle!.translateX(
     //   Math.max(-0.05, Math.min(sanitisedAngle, 0.05))
     // );
     // container.position.add(cameraDirection.multiplyScalar(0.04));
-    // container.position.add(cameraDirection.multiplyScalar(offset));
+    if(position === 'x')
+        container.position.add(cameraDirection.multiplyScalar(1.4 * player.speed.value * offset));
+    else {
+        container.rotateY(
+            Math.max(-0.01, Math.min(sanitisedAngle, 0.01)) * player.speed.value * offset
+        );
+        // container.position.add(cameraDirection.multiplyScalar(1.4 * offset));
+    }
+
     camera.lookAt(container.position.clone().add(cameraOrigin));
   }
 
   const moveX = (offset: 1|-1) => {
+    player.speed.value = player.speed.value + (.05 * offset)
     // player.vehicle!.translateX(1.4 * player.speed.value * offset)
-    container!.translateZ(1.4 * player.speed.value * -offset)
-    pointCamera(offset)
+    // container!.translateZ(1.4 * player.speed.value * -offset)
+    // pointCamera(offset)
   }
   const rotateY = (offset: 1|-1) => {
     // player.vehicle!.rotateY(.01 * player.speed.value * offset)
-    container!.rotateY(.01 * player.speed.value * offset)
-    pointCamera(offset)
+    // container!.rotateY(.01 * player.speed.value * offset)
+    // pointCamera(offset)
   }
 
   const _animate = (delta: number) => {
@@ -175,7 +192,7 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
     if(!player.loaded) return;
 
 
-    
+
     // camera.lookAt(player.vehicle!.position)
   }
 

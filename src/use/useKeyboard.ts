@@ -74,7 +74,7 @@ const keyboard = reactive<KeyboardState>({
   },
   update: function() {
     // console.log(this.keys)
-    
+
     // for(const [k, pressed] of Object.entries(this.keys)) {
     //   if(!pressed) continue;
     //   Object.entries(this.boundDown)
@@ -92,6 +92,10 @@ const keyboard = reactive<KeyboardState>({
       if(Object.entries(this.keys).filter(([k, pressed]) => k === key).some(([k, pressed]) => !pressed)) {
         // console.log(key)
         for(const fn of fns) fn()
+        if(!this.keys[key])
+            this.keys = Object.fromEntries(
+                Object.entries(this.keys).filter(([k]) => k === k)
+            )
       }
     }
 
@@ -111,7 +115,7 @@ export default function useKeyboard() {
 
     // console.log(keyboard.keys)
     // console.log(keyboard.boundDown)
-    
+
     keyboard.modifiers = {
       ...keyboard.modifiers,
       alt: e.altKey,
