@@ -1,13 +1,17 @@
 import { ref, watch, Ref } from "vue";
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { AnimationMixer, Camera, Clock, Object3D, Scene, Vector3, VectorKeyframeTrack, AnimationClip, InterpolateSmooth, LoopOnce, Quaternion, QuaternionKeyframeTrack, Group } from 'three'
+import { AnimationMixer, Camera, Clock, Object3D, Scene, Vector3, VectorKeyframeTrack, AnimationClip, InterpolateSmooth, LoopOnce, Quaternion, QuaternionKeyframeTrack, Group, Spherical } from 'three'
 import { v4 as uuidv4 } from 'uuid';
 
 // @ts-ignore
 import lowPolyTruck from '../assets/low-poly_truck_car_drifter.glb'
 // @ts-ignore
 import cloudPunkHova from '../assets/cloud_punk_hova.glb'
+// @ts-ignore
+import futuristicCar from '../assets/futuristic_sci-fi_car.glb'
+
 import useKeyboard from './useKeyboard'
+import usePointer from "./usePointer";
 
 export interface Player {
   readonly uuid: string;
@@ -35,16 +39,17 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
   const gltfLoader = new GLTFLoader()
 
   const { keyboard, useKeyDown, useKeyUp } = useKeyboard()
+  const { usePointerMove } = usePointer()
 
   const container = new Group();
-  // container.position.z = 30
   scene.add(container);
 
-  const xAxis = new Vector3(10, 0, 0);
-  const tempCameraVector = new Vector3();
+  const xAxis = new Vector3(1, 0, 0);
   const tempModelVector = new Vector3();
+  const tempCameraVector = new Vector3();
 
   camera.position.set( 0, 150, 250 );
+  // camera.position.set( 0, 2, -1 );
 
   const cameraOrigin = new Vector3(0, 1.5, 0);
   camera.lookAt(cameraOrigin);
@@ -58,7 +63,7 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
     speed: ref(1),
     onLoaded: () => {
       container.add(player.vehicle!)
-
+      
       player.loaded = true;
     },
     animate: (delta) => {
@@ -72,7 +77,7 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
   }
 
   const loadAsset = () => {
-    gltfLoader.load(cloudPunkHova, (gltf) => {
+    gltfLoader.load(futuristicCar, (gltf) => {
       const model = gltf.scene
       model.name = player.name
 
@@ -80,8 +85,10 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
       // model.scale.set(.133, .133, .133)
 
       model.scale.set(25, 25, 25)
-      model.position.set(-575, -200, 1180)
-      model.rotateY(90 * Math.PI / 180)
+      model.position.y = 15
+
+      // model.position.set(-575, -207, 1180)
+      // model.rotateY(90 * Math.PI / 180)
 
       player.vehicle = model
 
@@ -108,8 +115,8 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
     d: [ () => player.right() ],
     shift: [
       () => {
-        if(player.speed.value !== 2) {
-          player.speed.value = 2;
+        if(player.speed.value !== 3) {
+          player.speed.value = 3;
         }
       }
     ],
@@ -119,7 +126,6 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
       }
     ],
   })
-
   useKeyUp({
     shift: [
       () => {
@@ -130,7 +136,19 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
     ],
   })
 
-  watch(player.speed, (n, o) => console.log(n, o))
+  // usePointerMove((e: PointerEvent) => {
+  //   const { movementX, movementY } = e;
+  //   const offset = new Spherical().setFromVector3(
+  //     camera.position.clone().sub(cameraOrigin)
+  //   );
+  //   const phi = offset.phi - movementY * 0.02;
+  //   offset.theta -= movementX * 0.02;
+  //   offset.phi = Math.max(0.01, Math.min(0.5 * Math.PI, phi));
+  //   camera.position.copy(
+  //     cameraOrigin.clone().add(new Vector3().setFromSpherical(offset))
+  //   );
+  //   camera.lookAt(container.position.clone().add(cameraOrigin));
+  // })
 
   const moveWithCamera = (position: 'x'|'y', offset: 1|-1 = 1) => {
     // Get the X-Z plane in which camera is looking to move the player
@@ -144,9 +162,9 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
     // Get the angle to x-axis. z component is used to compare if the angle is clockwise or anticlockwise since angleTo returns a positive value
     const cameraAngle = cameraDirection.angleTo(xAxis) * (cameraDirection.z > 0 ? 1 : -1);
     const playerAngle = playerDirection.angleTo(xAxis) * (playerDirection.z > 0 ? 1 : -1);
-
+    
     // Get the angle to rotate the player to face the camera. Clockwise positive
-    const angleToRotate = playerAngle - cameraAngle;
+    const angleToRotate = -playerAngle - cameraAngle;
 
     // Get the shortest angle from clockwise angle to ensure the player always rotates the shortest angle
     let sanitisedAngle = angleToRotate;
@@ -158,17 +176,18 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
     }
 
     // Rotate the model by a tiny value towards the camera direction
-    // player.vehicle!.translateX(
+    // player.vehicle!.rotateY(
     //   Math.max(-0.05, Math.min(sanitisedAngle, 0.05))
     // );
     // container.position.add(cameraDirection.multiplyScalar(0.04));
     if(position === 'x')
-        container.position.add(cameraDirection.multiplyScalar(1.4 * player.speed.value * offset));
+      container.position.add(cameraDirection.multiplyScalar(1.4 * player.speed.value * offset));
     else {
-        container.rotateY(
-            Math.max(-0.01, Math.min(sanitisedAngle, 0.01)) * player.speed.value * offset
-        );
-        // container.position.add(cameraDirection.multiplyScalar(1.4 * offset));
+      container.rotateY(
+        (.01 * player.speed.value * offset)
+        // Math.max(-0.01, Math.min(sanitisedAngle, 0.01)) * player.speed.value * offset
+      );
+      // container.position.add(cameraDirection.multiplyScalar(1.4 * offset));
     }
 
     camera.lookAt(container.position.clone().add(cameraOrigin));
@@ -188,10 +207,11 @@ export default function usePlayer({name = 'Guest', scene, camera}: PlayerProps) 
 
   const _animate = (delta: number) => {
     mixer.update(delta);
+    // mixer.update(delta);
 
     if(!player.loaded) return;
 
-
+    keyboard.update()
 
     // camera.lookAt(player.vehicle!.position)
   }

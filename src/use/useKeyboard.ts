@@ -34,81 +34,81 @@ const ALIAS: Record<string, string> = {
 
 }
 
-const keyboard = reactive<KeyboardState>({
-  keys: {},
-  modifiers: {
-    alt: false,
-    ctrl: false,
-    meta: false,
-    shift: false,
-  },
-  boundUp: {},
-  boundDown: {},
-  reset: function() {
-    this.keys = {}
-    this.modifiers = {
+export default function useKeyboard() {
+  const keyboard = reactive<KeyboardState>({
+    keys: {},
+    modifiers: {
       alt: false,
       ctrl: false,
       meta: false,
       shift: false,
-    }
-    // this.boundUp = {}
-    // this.boundDown = {}
-  },
-  query: function(key: string) {
-    for(const code of key.toLowerCase().split('+')) {
-      let pressed: boolean = false;
-
-      if(MODIFIERS.includes(code)) {
-        pressed = this.modifiers[code]
-      } else if (Object.keys(ALIAS).includes(code)) {
-        pressed = this.keys[ALIAS[code]]
-      } else {
-        pressed = this.keys[code]
+    },
+    boundUp: {},
+    boundDown: {},
+    reset: function() {
+      this.keys = {}
+      this.modifiers = {
+        alt: false,
+        ctrl: false,
+        meta: false,
+        shift: false,
       }
-
-      if(!pressed) return false
-    }
-
-    return true
-  },
-  update: function() {
-    // console.log(this.keys)
-
-    // for(const [k, pressed] of Object.entries(this.keys)) {
-    //   if(!pressed) continue;
-    //   Object.entries(this.boundDown)
-    //     .filter(([_, {key, fn}]) => k == key)
-    //     .map(([_, c]) => c.fn())
-    // }
-
-    // console.log(this.boundDown)
-
-    // for(const [key, fns] of Object.entries(this.keys)) {
-    //   console.log(key, fns)
-    // }
-
-    for(const [key, fns] of Object.entries(this.boundUp)) {
-      if(Object.entries(this.keys).filter(([k, pressed]) => k === key).some(([k, pressed]) => !pressed)) {
-        // console.log(key)
-        for(const fn of fns) fn()
-        if(!this.keys[key])
-            this.keys = Object.fromEntries(
-                Object.entries(this.keys).filter(([k]) => k === k)
-            )
+      // this.boundUp = {}
+      // this.boundDown = {}
+    },
+    query: function(key: string) {
+      for(const code of key.toLowerCase().split('+')) {
+        let pressed: boolean = false;
+  
+        if(MODIFIERS.includes(code)) {
+          pressed = this.modifiers[code]
+        } else if (Object.keys(ALIAS).includes(code)) {
+          pressed = this.keys[ALIAS[code]]
+        } else {
+          pressed = this.keys[code]
+        }
+  
+        if(!pressed) return false
       }
-    }
-
-    for(const [key, fns] of Object.entries(this.boundDown)) {
-      if(Object.entries(this.keys).filter(([k, pressed]) => k === key).some(([k, pressed]) => pressed)) {
-        // console.log(key)
-        for(const fn of fns) fn()
+  
+      return true
+    },
+    update: function() {
+      // console.log(this.keys)
+  
+      // for(const [k, pressed] of Object.entries(this.keys)) {
+      //   if(!pressed) continue;
+      //   Object.entries(this.boundDown)
+      //     .filter(([_, {key, fn}]) => k == key)
+      //     .map(([_, c]) => c.fn())
+      // }
+  
+      // console.log(this.boundDown)
+  
+      // for(const [key, fns] of Object.entries(this.keys)) {
+      //   console.log(key, fns)
+      // }
+  
+      for(const [key, fns] of Object.entries(this.boundUp)) {
+        if(Object.entries(this.keys).filter(([k, pressed]) => k === key).some(([k, pressed]) => !pressed)) {
+          // console.log(key)
+          for(const fn of fns) fn()
+          if(!this.keys[key])
+              this.keys = Object.fromEntries(
+                  Object.entries(this.keys).filter(([k]) => k === k)
+              )
+        }
       }
-    }
-  },
-})
-
-export default function useKeyboard() {
+  
+      for(const [key, fns] of Object.entries(this.boundDown)) {
+        if(Object.entries(this.keys).filter(([k, pressed]) => k === key).some(([k, pressed]) => pressed)) {
+          // console.log(key)
+          for(const fn of fns) fn()
+        }
+      }
+    },
+  })
+  
   const _onKeyChange = (e: KeyboardEvent, pressed: boolean) => {
     var keyCode		= e.key.toLowerCase();
     keyboard.keys = {...keyboard.keys, [keyCode]: pressed}

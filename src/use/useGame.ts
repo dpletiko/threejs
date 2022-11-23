@@ -30,7 +30,7 @@ export interface Game {
   scene: Scene;
   clock: Clock;
   renderer: Renderer;
-
+  controls?: OrbitControls;
 
   start: () => void;
 }
@@ -94,32 +94,32 @@ export default function useGame() {
 
   const setupOrbitControls = () => {
     // CONTROLS
-    const controls = new OrbitControls(camera, game.renderer.domElement);
+    game.controls = new OrbitControls(camera, game.renderer.domElement);
 
-    controls.rotateSpeed = .166
+    game.controls.rotateSpeed = .166
     // How far you can zoom in and out ( OrthographicCamera only )
     if(camera instanceof OrthographicCamera) {
-      controls.minZoom = 1
-      controls.maxZoom = 3
+      game.controls.minZoom = 1
+      game.controls.maxZoom = 3
     }
 
     // Set to true to enable damping (inertia)
     // If damping is enabled, you must call controls.update() in your animation loop
-    controls.enableDamping = false;
-    controls.dampingFactor = 0.05;
+    game.controls.enableDamping = false;
+    game.controls.dampingFactor = 0.05;
 
     // How far you can dolly in and out ( PerspectiveCamera only )
     if(camera instanceof PerspectiveCamera) {
       // controls.minDistance  = (camera as PerspectiveCamera).position.y * .4
-      controls.minDistance  = 1000 * .4
+      game.controls.minDistance  = 150 * .4
       // controls.maxDistance  = (camera as PerspectiveCamera).position.y * 1.33
-      controls.maxDistance  = 1000 * 1.33
+      game.controls.maxDistance  = 150 * 1.33
     }
 
     // Set to true to automatically rotate around the target
     // If auto-rotate is enabled, you must call controls.update() in your animation loop
-    controls.autoRotate = false;
-    controls.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
+    game.controls.autoRotate = false;
+    game.controls.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
   }
 
   const loadGround = () => {
@@ -159,7 +159,7 @@ export default function useGame() {
     const delta = game.clock.getDelta(); // seconds.
     // if(mixer) mixer.update(delta);
 
-    keyboard.update()
+    // keyboard.update()
    
     if(game.player.loaded) {
       // var player = scene.getObjectByName(game.player.name);
@@ -168,7 +168,7 @@ export default function useGame() {
       // camera.lookAt(game.player.vehicle!.position);
     }
 
-    // controls.update()
+    // game.controls?.update()
   }
 
   onMounted(() => {
